@@ -16,22 +16,27 @@ func whenAll<Value>(_ resultsOrPromises: [ResultOrPromise<Value>], notifyOn queu
       return .result(.failure(error))
     }
   }
-  
+
   return .promise(Promise { (fulfill, reject) in
     let group = DispatchGroup()
-    
+    var rejected = false
+
     for resultOrPromise in resultsOrPromises {
       group.enter()
-      
+
       resultOrPromise.andThen { value in
         group.leave()
       }.catch { error in
         reject(error)
+        rejected = true
+        group.leave()
       }
     }
-    
+
     group.notify(queue: queue) {
-      fulfill(resultsOrPromises.map { $0.result!.value! })
+      if !rejected {
+        fulfill(resultsOrPromises.map { $0.result!.value! })
+      }
     }
   })
 }
